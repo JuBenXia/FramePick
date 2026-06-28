@@ -431,12 +431,12 @@ header .version { color: var(--text-dim); font-size: 12px; }
       <!-- Title -->
       <div class="tool-group full-width">
         <label>主标题文字</label>
-        <input type="text" id="titleText" value="精彩时刻" placeholder="输入封面标题…">
+        <textarea id="titleText" rows="2" placeholder="输入封面标题…" style="resize:vertical;min-height:44px;">精彩时刻</textarea>
       </div>
       <!-- Subtitle -->
       <div class="tool-group full-width">
         <label>副标题（可选）</label>
-        <input type="text" id="subText" value="" placeholder="副标题…">
+        <textarea id="subText" rows="2" placeholder="副标题…" style="resize:vertical;min-height:44px;"></textarea>
       </div>
 
       <!-- Font size -->
@@ -848,7 +848,7 @@ header .version { color: var(--text-dim); font-size: 12px; }
 
   function getTextBoxBounds(type) {
     const isTitle = type === 'title';
-    const text = isTitle ? titleText.value.trim() : subText.value.trim();
+    const text = (isTitle ? titleText.value : subText.value).trim();
     if (!text) return null;
     const size = isTitle ? parseInt(titleSize.value) : parseInt(subSize.value);
     const y = isTitle ? parseInt(titleY.value) : parseInt(subY.value);
@@ -859,14 +859,20 @@ header .version { color: var(--text-dim); font-size: 12px; }
     const fontWeight = isTitle ? 'bold' : 'normal';
     ctx.font = `${fontWeight} ${size}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
     ctx.textAlign = align;
-    const metrics = ctx.measureText(text);
-    const tw = metrics.width;
+    const lines = text.split('\n');
     const lh = size * 1.25;
+    let maxW = 0;
+    lines.forEach(l => {
+      if (!l) return;
+      const m = ctx.measureText(l);
+      if (m.width > maxW) maxW = m.width;
+    });
+    const totalH = lines.length * lh;
     let bx, bw;
-    if (align === 'center') { bx = x - tw/2 - 8; bw = tw + 16; }
-    else if (align === 'right') { bx = x - tw - 8; bw = tw + 16; }
-    else { bx = x - 8; bw = tw + 16; }
-    return { bx, by: y - 4, bw, bh: lh + 8, x, y, size, align };
+    if (align === 'center') { bx = x - maxW/2 - 8; bw = maxW + 16; }
+    else if (align === 'right') { bx = x - maxW - 8; bw = maxW + 16; }
+    else { bx = x - 8; bw = maxW + 16; }
+    return { bx, by: y - 4, bw, bh: totalH + 8, x, y, size, align, lines, lh };
   }
 
   function drawTextOverlay() {
@@ -885,6 +891,57 @@ header .version { color: var(--text-dim); font-size: 12px; }
     if (!title && !sub) return;
 
     ctx.textBaseline = 'top';
+    const sw = parseFloat(strokeWidth.value);
+
+    // === Helper to draw multi-line text ===
+    function drawMultiText(text, x, y, fontSize, fontWeight, isSelected) {
+      if (!text) return;
+      const lines = text.split('\n');
+      const lh = fontSize * 1.25;
+      let maxW = 0;
+      ctx.font = `${fontWeight} ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+
+      lines.forEach((l, i) => {
+        if (!l) return;
+        const lineY = y + i * lh;
+        const m = ctx.measureText(l);
+        if (m.width > maxW) maxW = m.width;
+
+        if (sw > 0) {
+          ctx.save();
+          ctx.strokeStyle = strokeColor.value;
+          ctx.lineWidth = sw;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(l, x, lineY);
+          ctx.restore();
+        }
+        ctx.fillStyle = textColor.value;
+        ctx.fillText(l, x, lineY);
+      });
+
+      // Selection bounding box
+      if (isSelected) {
+        const totalH = lines.length * lh;
+        let bx, bw;
+        if (align === 'center') { bx = x - maxW/2 - 8; bw = maxW + 16; }
+        else if (align === 'right') { bx = x - maxW - 8; bw = maxW + 16; }
+        else { bx = x - 8; bw = maxW + 16; }
+
+        ctx.save();
+        ctx.strokeStyle = '#4a9eff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(bx, y - 4, bw, totalH + 8);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#4a9eff';
+        const hs = 6;
+        [[bx, y-4],[bx+bw, y-4],[bx, y+totalH+4],[bx+bw, y+totalH+4]].forEach(([hx,hy]) => {
+          ctx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
+        });
+        ctx.restore();
+      }
+    }
 
     // Draw title
     if (title) {
@@ -892,42 +949,7 @@ header .version { color: var(--text-dim); font-size: 12px; }
       const tY = parseInt(titleY.value);
       const tOffX = parseInt(titleX.value);
       const tX = baseX + tOffX;
-      const sw = parseFloat(strokeWidth.value);
-      ctx.font = `bold ${tSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
-      ctx.textAlign = align;
-
-      if (sw > 0) {
-        ctx.strokeStyle = strokeColor.value;
-        ctx.lineWidth = sw;
-        ctx.lineJoin = 'round';
-        ctx.strokeText(title, tX, tY);
-      }
-      ctx.fillStyle = textColor.value;
-      ctx.fillText(title, tX, tY);
-
-      // Selection bounding box
-      if (selectedText === 'title') {
-        const metrics = ctx.measureText(title);
-        const tw = metrics.width;
-        const lh = tSize * 1.25;
-        let bx, bw;
-        if (align === 'center') { bx = tX - tw/2 - 8; bw = tw + 16; }
-        else if (align === 'right') { bx = tX - tw - 8; bw = tw + 16; }
-        else { bx = tX - 8; bw = tw + 16; }
-        ctx.save();
-        ctx.strokeStyle = '#4a9eff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(bx, tY - 4, bw, lh + 8);
-        ctx.setLineDash([]);
-        // Corner handles
-        ctx.fillStyle = '#4a9eff';
-        const hs = 6;
-        [[bx, tY-4],[bx+bw, tY-4],[bx, tY+lh+4],[bx+bw, tY+lh+4]].forEach(([hx,hy]) => {
-          ctx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
-        });
-        ctx.restore();
-      }
+      drawMultiText(title, tX, tY, tSize, 'bold', selectedText === 'title');
     }
 
     // Draw subtitle
@@ -936,41 +958,7 @@ header .version { color: var(--text-dim); font-size: 12px; }
       const sY = parseInt(subY.value);
       const sOffX = parseInt(subX.value);
       const sX = baseX + sOffX;
-      const sw = parseFloat(strokeWidth.value);
-      ctx.font = `${sSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
-      ctx.textAlign = align;
-
-      if (sw > 0) {
-        ctx.strokeStyle = strokeColor.value;
-        ctx.lineWidth = sw;
-        ctx.lineJoin = 'round';
-        ctx.strokeText(sub, sX, sY);
-      }
-      ctx.fillStyle = textColor.value;
-      ctx.fillText(sub, sX, sY);
-
-      // Selection bounding box
-      if (selectedText === 'sub') {
-        const metrics = ctx.measureText(sub);
-        const sw2 = metrics.width;
-        const lh = sSize * 1.25;
-        let bx, bw;
-        if (align === 'center') { bx = sX - sw2/2 - 8; bw = sw2 + 16; }
-        else if (align === 'right') { bx = sX - sw2 - 8; bw = sw2 + 16; }
-        else { bx = sX - 8; bw = sw2 + 16; }
-        ctx.save();
-        ctx.strokeStyle = '#4a9eff';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(bx, sY - 4, bw, lh + 8);
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#4a9eff';
-        const hs = 6;
-        [[bx, sY-4],[bx+bw, sY-4],[bx, sY+lh+4],[bx+bw, sY+lh+4]].forEach(([hx,hy]) => {
-          ctx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
-        });
-        ctx.restore();
-      }
+      drawMultiText(sub, sX, sY, sSize, 'normal', selectedText === 'sub');
     }
   }
 
@@ -983,24 +971,33 @@ header .version { color: var(--text-dim); font-size: 12px; }
     const align = textAlign.value;
     const baseX = getTextBaseX(align);
 
+    function checkText(text, x, y, fontSize, fontWeight) {
+      if (!text) return false;
+      const lines = text.split('\n');
+      const lh = fontSize * 1.25;
+      const totalH = lines.length * lh;
+      ctx.font = `${fontWeight} ${fontSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+      let maxW = 0;
+      lines.forEach(l => {
+        if (!l) return;
+        const m = ctx.measureText(l);
+        if (m.width > maxW) maxW = m.width;
+      });
+      let left, right;
+      if (align === 'center') { left = x - maxW/2 - 12; right = x + maxW/2 + 12; }
+      else if (align === 'right') { left = x - maxW - 12; right = x + 12; }
+      else { left = x - 12; right = x + maxW + 12; }
+      return mx >= left && mx <= right && my >= y - 8 && my <= y + totalH + 8;
+    }
+
     // Check title
     if (title) {
       const tSize = parseInt(titleSize.value);
       const tY = parseInt(titleY.value);
       const tOffX = parseInt(titleX.value);
       const tX = baseX + tOffX;
-      ctx.font = `bold ${tSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
-      ctx.textAlign = align;
-      const metrics = ctx.measureText(title);
-      const tw = metrics.width;
-      const lh = tSize * 1.25;
-
-      let left, right;
-      if (align === 'center') { left = tX - tw/2 - 12; right = tX + tw/2 + 12; }
-      else if (align === 'right') { left = tX - tw - 12; right = tX + 12; }
-      else { left = tX - 12; right = tX + tw + 12; }
-
-      if (mx >= left && mx <= right && my >= tY - 8 && my <= tY + lh + 8) return 'title';
+      if (checkText(title, tX, tY, tSize, 'bold')) return 'title';
     }
 
     // Check subtitle
@@ -1009,18 +1006,7 @@ header .version { color: var(--text-dim); font-size: 12px; }
       const sY = parseInt(subY.value);
       const sOffX = parseInt(subX.value);
       const sX = baseX + sOffX;
-      ctx.font = `${sSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
-      ctx.textAlign = align;
-      const metrics = ctx.measureText(sub);
-      const sw2 = metrics.width;
-      const lh = sSize * 1.25;
-
-      let left, right;
-      if (align === 'center') { left = sX - sw2/2 - 12; right = sX + sw2/2 + 12; }
-      else if (align === 'right') { left = sX - sw2 - 12; right = sX + 12; }
-      else { left = sX - 12; right = sX + sw2 + 12; }
-
-      if (mx >= left && mx <= right && my >= sY - 8 && my <= sY + lh + 8) return 'sub';
+      if (checkText(sub, sX, sY, sSize, 'normal')) return 'sub';
     }
 
     return null;
@@ -1118,7 +1104,9 @@ header .version { color: var(--text-dim); font-size: 12px; }
     const dy = (e.clientY - dragState.startY) * scaleY;
 
     const margin = 10;
-    const maxY = canvas.height - dragState.size - margin;
+    const lines = (dragState.type === 'title' ? titleText.value : subText.value).split('\n').length;
+    const textSize = parseInt(dragState.type === 'title' ? titleSize.value : subSize.value);
+    const maxY = canvas.height - lines * textSize * 1.25 - margin;
 
     const newX = Math.round(Math.max(-canvas.width, Math.min(canvas.width, dragState.baseX + dx)));
     const newY = Math.round(Math.max(margin, Math.min(maxY, dragState.baseY + dy)));
@@ -1192,11 +1180,10 @@ header .version { color: var(--text-dim); font-size: 12px; }
     const cssY = textY * cssScaleY + (rect.top - wrapRect.top);
     const cssFontSize = Math.max(12, fontSize * cssScaleY);
 
-    const input = document.createElement('input');
-    input.className = 'text-editor-overlay';
-    input.type = 'text';
-    input.value = currentText;
-    input.style.cssText = `
+    const textarea = document.createElement('textarea');
+    textarea.className = 'text-editor-overlay';
+    textarea.value = currentText;
+    textarea.style.cssText = `
       position: absolute;
       left: ${cssX}px;
       top: ${cssY}px;
@@ -1208,39 +1195,38 @@ header .version { color: var(--text-dim); font-size: 12px; }
       background: rgba(0,0,0,0.55);
       border: 2px solid #4a9eff;
       border-radius: 4px;
-      padding: 0 6px;
+      padding: 2px 6px;
       outline: none;
       z-index: 100;
-      min-width: 30px;
+      min-width: 80px;
+      min-height: ${cssFontSize * 1.4}px;
       text-align: ${align};
-      white-space: nowrap;
+      white-space: pre-wrap;
+      overflow: hidden;
+      resize: none;
       caret-color: ${color};
       text-shadow: 0 1px 3px rgba(0,0,0,0.8);
     `;
-    canvasWrap.appendChild(input);
-    input.focus();
-    input.select();
+    canvasWrap.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
 
     function commitEdit() {
-      const val = input.value.trim();
+      const val = textarea.value;
       if (isTitle) {
         titleText.value = val || '精彩时刻';
       } else {
         subText.value = val;
       }
-      input.remove();
+      textarea.remove();
       drawTextOverlay();
     }
 
-    input.addEventListener('blur', commitEdit);
-    input.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Enter') {
+    textarea.addEventListener('blur', commitEdit);
+    textarea.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter' && ev.shiftKey) {
         ev.preventDefault();
-        input.blur();
-      }
-      if (ev.key === 'Escape') {
-        input.remove();
-        drawTextOverlay();
+        textarea.blur();
       }
     });
   });
