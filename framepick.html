@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FramePick - 视频封面制作器</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --card: #0f3460;
+  --accent: #e94560;
+  --accent-hover: #ff6b81;
+  --text: #eee;
+  --text-dim: #999;
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+header {
+  padding: 16px 32px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+header h1 span { color: var(--accent); }
+header .version { color: var(--text-dim); font-size: 12px; }
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+}
+.panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Upload zone */
+.upload-zone {
+  border: 2px dashed #444;
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .3s;
+  margin-bottom: 16px;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(233,69,96,.08);
+}
+.upload-zone .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: .6;
+}
+.upload-zone .hint {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.upload-zone .hint strong { color: var(--text); }
+.upload-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Video player */
+.video-wrapper {
+  position: relative;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  margin: 0 auto 12px;
+}
+.video-wrapper video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  flex-wrap: wrap;
+}
+.controls button {
+  background: var(--card);
+  border: none;
+  color: var(--text);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.controls button:hover { background: var(--accent); }
+.controls .time {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  min-width: 100px;
+}
+.seek-bar {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #333;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+.seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.seek-bar::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+}
+
+/* Filmstrip */
+.filmstrip-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  border-radius: 6px;
+  background: #0a0a1a;
+  padding: 4px;
+  margin-top: 8px;
+  display: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) #333;
+}
+.filmstrip-wrap::-webkit-scrollbar { height: 6px; }
+.filmstrip-wrap::-webkit-scrollbar-track { background: #333; border-radius: 3px; }
+.filmstrip-wrap::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+.filmstrip-wrap.has-video { display: block; }
+.filmstrip {
+  display: inline-flex;
+  gap: 3px;
+  align-items: flex-end;
+}
+.filmstrip .thumb {
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: border-color .2s;
+  position: relative;
+}
+.filmstrip .thumb:hover { border-color: var(--accent); }
+.filmstrip .thumb img {
+  display: block;
+  height: 50px;
+  width: auto;
+  object-fit: contain;
+  background: #000;
+}
+.filmstrip .thumb .thumb-time {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 9px;
+  color: #fff;
+  background: rgba(0,0,0,.6);
+  padding: 1px 2px;
+  line-height: 1.2;
+}
+.filmstrip .thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.capture-btn {
+  background: var(--accent) !important;
+  border-radius: 8px !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  gap: 6px;
+}
+.capture-btn:hover { background: var(--accent-hover) !important; }
+
+/* Canvas editor */
+.canvas-wrap {
+  position: relative;
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0 auto 12px;
+}
+.canvas-wrap canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.canvas-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.canvas-empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+/* Tools */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.tool-group {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 12px;
+}
+.tool-group label {
+  font-size: 12px;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 4px;
+}
+.tool-group input[type=text],
+.tool-group input[type=color],
+.tool-group input[type=number],
+.tool-group select {
+  width: 100%;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+.tool-group input[type=text]:focus,
+.tool-group select:focus { border-color: var(--accent); }
+.tool-group input[type=color] {
+  height: 36px;
+  padding: 2px;
+  cursor: pointer;
+}
+.tool-group input[type=range] {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+}
+.tool-group input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.full-width { grid-column: 1 / -1; }
+
+/* Export */
+.export-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.btn {
+  background: var(--card);
+  border: none;
+  color: var(--text);
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-primary { background: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn:hover { filter: brightness(1.15); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* Resolution preset */
+.res-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.res-presets .chip {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.res-presets .chip:hover,
+.res-presets .chip.active { border-color: var(--accent); background: rgba(233,69,96,.15); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface);
+  color: var(--text);
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent);
+  opacity: 0;
+  transition: all .4s;
+  pointer-events: none;
+  z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎬 <span>Frame</span>Pick</h1>
+  <span class="version">v1.0 · 拖入视频 · 选中帧 · 做封面</span>
+</header>
+
+<div class="container">
+
+  <!-- Left: Video -->
+  <div class="panel">
+    <div class="panel-title">🎞️ 视频源</div>
+
+    <div class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*">
+      <div class="icon">🎥</div>
+      <div class="hint">拖拽视频到此处，或 <strong>点击选择文件</strong></div>
+      <div class="hint" style="margin-top:6px;font-size:12px;">支持 MP4 / WebM / MOV / AVI 等</div>
+    </div>
+
+    <div class="video-wrapper">
+      <video id="videoPlayer" preload="metadata"></video>
+    </div>
+
+    <div class="controls">
+      <button id="playBtn" title="播放/暂停">▶</button>
+      <input type="range" class="seek-bar" id="seekBar" value="0" min="0" max="1000" step="1">
+      <span class="time" id="timeDisplay">00:00 / 00:00</span>
+      <button id="captureBtn" class="capture-btn" disabled>📸 截取此帧</button>
+    </div>
+
+    <div class="filmstrip-wrap" id="filmstripWrap">
+      <div class="filmstrip" id="filmstrip"></div>
+    </div>
+
+    <div style="margin-top:8px;font-size:12px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap;">
+      <span>⌨️ 空格 = 播放/暂停</span>
+      <span>← → = 逐帧微调</span>
+      <span>Ctrl+Enter = 截帧</span>
+    </div>
+  </div>
+
+  <!-- Right: Editor -->
+  <div class="panel">
+    <div class="panel-title">🖼️ 封面编辑器</div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="coverCanvas" width="1280" height="720"></canvas>
+      <div class="canvas-empty" id="canvasEmpty">
+        <div class="icon">🖼️</div>
+        <div>截取视频帧后显示在此</div>
+        <div style="font-size:12px;margin-top:6px;color:var(--text-dim);">点击「截取此帧」或按 Ctrl+Enter</div>
+      </div>
+    </div>
+
+    <div class="tools-grid">
+      <!-- Title -->
+      <div class="tool-group full-width">
+        <label>主标题文字</label>
+        <input type="text" id="titleText" value="精彩时刻" placeholder="输入封面标题…">
+      </div>
+      <!-- Subtitle -->
+      <div class="tool-group full-width">
+        <label>副标题（可选）</label>
+        <input type="text" id="subText" value="" placeholder="副标题…">
+      </div>
+
+      <!-- Font size -->
+      <div class="tool-group">
+        <label>标题字号</label>
+        <input type="range" id="titleSize" min="20" max="120" value="56">
+        <span style="font-size:11px;color:var(--text-dim);" id="titleSizeLabel">56px</span>
+      </div>
+      <!-- Sub size -->
+      <div class="tool-group">
+        <label>副标题字号</label>
+        <input type="range" id="subSize" min="12" max="80" value="28">
+        <span style="font-size:11px;color:var(--text-dim);" id="subSizeLabel">28px</span>
+      </div>
+
+      <!-- Color -->
+      <div class="tool-group">
+        <label>文字颜色</label>
+        <input type="color" id="textColor" value="#ffffff">
+      </div>
+      <div class="tool-group">
+        <label>描边颜色</label>
+        <input type="color" id="strokeColor" value="#000000">
+      </div>
+
+      <!-- X position -->
+      <div class="tool-group">
+        <label>标题 X 偏移</label>
+        <input type="range" id="titleX" min="-400" max="400" value="0">
+        <span style="font-size:11px;color:var(--text-dim);" id="titleXLabel">0</span>
+      </div>
+      <div class="tool-group">
+        <label>副标题 X 偏移</label>
+        <input type="range" id="subX" min="-400" max="400" value="0">
+        <span style="font-size:11px;color:var(--text-dim);" id="subXLabel">0</span>
+      </div>
+
+      <!-- Y position -->
+      <div class="tool-group">
+        <label>标题 Y 位置</label>
+        <input type="range" id="titleY" min="0" max="720" value="180">
+        <span style="font-size:11px;color:var(--text-dim);" id="titleYLabel">180</span>
+      </div>
+      <div class="tool-group">
+        <label>副标题 Y 位置</label>
+        <input type="range" id="subY" min="0" max="720" value="280">
+        <span style="font-size:11px;color:var(--text-dim);" id="subYLabel">280</span>
+      </div>
+
+      <!-- Alignment -->
+      <div class="tool-group">
+        <label>对齐方式</label>
+        <select id="textAlign">
+          <option value="center">居中</option>
+          <option value="left">左对齐</option>
+          <option value="right">右对齐</option>
+        </select>
+      </div>
+      <div class="tool-group">
+        <label>描边宽度</label>
+        <input type="range" id="strokeWidth" min="0" max="8" value="3" step="0.5">
+        <span style="font-size:11px;color:var(--text-dim);" id="strokeWidthLabel">3px</span>
+      </div>
+
+      <!-- Resolution -->
+      <div class="tool-group full-width">
+        <label>输出分辨率</label>
+        <div class="res-presets">
+          <span class="chip active" data-w="1280" data-h="720">1280×720</span>
+          <span class="chip" data-w="1920" data-h="1080">1920×1080</span>
+          <span class="chip" data-w="640" data-h="360">640×360</span>
+          <span class="chip" data-w="1080" data-h="1920">1080×1920 (竖屏)</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <input type="number" id="resW" value="1280" min="100" max="7680" style="width:70px;">
+          <span style="color:var(--text-dim);line-height:36px;">×</span>
+          <input type="number" id="resH" value="720" min="100" max="4320" style="width:70px;">
+        </div>
+      </div>
+    </div>
+
+    <div class="export-bar">
+      <button class="btn btn-primary" id="exportBtn" disabled>💾 导出封面</button>
+      <button class="btn" id="resetTextBtn">↺ 重置文字</button>
+      <button class="btn" id="clearFrameBtn">🗑️ 清空帧</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // DOM refs
+  const video = document.getElementById('videoPlayer');
+  const canvas = document.getElementById('coverCanvas');
+  const ctx = canvas.getContext('2d');
+  const canvasEmpty = document.getElementById('canvasEmpty');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const fileInput = document.getElementById('fileInput');
+  const dropZone = document.getElementById('dropZone');
+  const playBtn = document.getElementById('playBtn');
+  const seekBar = document.getElementById('seekBar');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const captureBtn = document.getElementById('captureBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const toast = document.getElementById('toast');
+
+  // Text inputs
+  const titleText = document.getElementById('titleText');
+  const subText = document.getElementById('subText');
+  const titleSize = document.getElementById('titleSize');
+  const subSize = document.getElementById('subSize');
+  const textColor = document.getElementById('textColor');
+  const strokeColor = document.getElementById('strokeColor');
+  const titleY = document.getElementById('titleY');
+  const subY = document.getElementById('subY');
+  const titleX = document.getElementById('titleX');
+  const subX = document.getElementById('subX');
+  const textAlign = document.getElementById('textAlign');
+  const strokeWidth = document.getElementById('strokeWidth');
+  const titleSizeLabel = document.getElementById('titleSizeLabel');
+  const subSizeLabel = document.getElementById('subSizeLabel');
+  const titleYLabel = document.getElementById('titleYLabel');
+  const subYLabel = document.getElementById('subYLabel');
+  const titleXLabel = document.getElementById('titleXLabel');
+  const subXLabel = document.getElementById('subXLabel');
+  const strokeWidthLabel = document.getElementById('strokeWidthLabel');
+  const resW = document.getElementById('resW');
+  const resH = document.getElementById('resH');
+  const resetTextBtn = document.getElementById('resetTextBtn');
+  const clearFrameBtn = document.getElementById('clearFrameBtn');
+
+  // Filmstrip refs
+  const filmstripWrap = document.getElementById('filmstripWrap');
+  const filmstrip = document.getElementById('filmstrip');
+
+  // State
+  let hasFrame = false;
+  let capturedImageData = null; // ImageData from captured frame
+  let videoLoaded = false;
+  let isPlaying = false;
+  let frameTimer = null;
+  let currentResW = 1280, currentResH = 720;
+
+  // === Video file loading ===
+  function loadVideo(file) {
+    if (!file || !file.type.startsWith('video/')) {
+      showToast('请选择视频文件');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    video.src = url;
+    video.load();
+    videoLoaded = true;
+    captureBtn.disabled = false;
+    showToast(`已加载: ${file.name}`);
+  }
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) loadVideo(fileInput.files[0]);
+  });
+
+  // Drag & drop
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) loadVideo(e.dataTransfer.files[0]);
+  });
+
+  // === Video controls ===
+  playBtn.addEventListener('click', togglePlay);
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    if (e.code === 'ArrowLeft') { e.preventDefault(); video.currentTime = Math.max(0, video.currentTime - 0.5); }
+    if (e.code === 'ArrowRight') { e.preventDefault(); video.currentTime = Math.min(video.duration, video.currentTime + 0.5); }
+    if (e.code === 'Enter' && e.ctrlKey) { e.preventDefault(); captureFrame(); }
+  });
+
+  function togglePlay() {
+    if (!videoLoaded || !video.src) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }
+
+  video.addEventListener('play', () => { isPlaying = true; playBtn.textContent = '⏸'; });
+  video.addEventListener('pause', () => { isPlaying = false; playBtn.textContent = '▶'; });
+  video.addEventListener('ended', () => { isPlaying = false; playBtn.textContent = '▶'; });
+
+  video.addEventListener('timeupdate', () => {
+    updateSeekUI();
+    updateFilmstripActive();
+  });
+  video.addEventListener('loadedmetadata', () => {
+    seekBar.max = 1000;
+    updateSeekUI();
+    fitContainerByAspect(video.parentElement, video.videoWidth, video.videoHeight);
+    generateFilmstrip();
+  });
+
+  seekBar.addEventListener('input', () => {
+    if (video.duration) {
+      video.currentTime = (seekBar.value / seekBar.max) * video.duration;
+    }
+  });
+
+  function updateSeekUI() {
+    if (video.duration) {
+      seekBar.value = (video.currentTime / video.duration) * 1000;
+    }
+    timeDisplay.textContent = formatTime(video.currentTime) + ' / ' + formatTime(video.duration || 0);
+  }
+
+  function formatTime(t) {
+    if (!isFinite(t)) return '00:00';
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  // === Fit container by aspect ratio: landscape→limiting width, portrait→limiting height ===
+  function fitContainerByAspect(container, contentW, contentH) {
+    const maxW = container.parentElement.clientWidth;
+    const maxH = window.innerHeight * 0.7;
+    const ratio = contentW / contentH;
+    let w, h;
+    if (ratio >= 1) { // landscape: limit by width
+      w = Math.min(maxW, maxH * ratio);
+      h = w / ratio;
+    } else { // portrait: limit by height
+      h = Math.min(maxH, maxW / ratio);
+      w = h * ratio;
+    }
+    container.style.width = w + 'px';
+    container.style.height = h + 'px';
+  }
+
+  // === Filmstrip generation ===
+  function generateFilmstrip() {
+    filmstrip.innerHTML = '';
+    const duration = video.duration;
+    if (!duration || duration <= 0) return;
+
+    // Calculate thumbnail interval: aim for ~30 thumbnails max
+    const idealCount = Math.min(30, Math.floor(duration));
+    const interval = Math.max(0.5, duration / idealCount);
+    const count = Math.ceil(duration / interval);
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const vRatio = vw / vh;
+
+    // Thumbnail size
+    const thumbH = 50;
+    const thumbW = Math.round(thumbH * vRatio);
+
+    const offC = document.createElement('canvas');
+    offC.width = thumbW;
+    offC.height = thumbH;
+    const offCtx = offC.getContext('2d');
+
+    filmstripWrap.classList.add('has-video');
+
+    const savedTime = video.currentTime;
+    let index = 0;
+    let seekHandler = null;
+
+    function captureNext() {
+      if (index >= count) {
+        video.removeEventListener('seeked', seekHandler);
+        video.currentTime = savedTime;
+        // Scroll to current position
+        const activeEl = filmstrip.querySelector('.active');
+        if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        return;
+      }
+      const t = Math.min(index * interval, duration - 0.01);
+      video.currentTime = t;
+    }
+
+    seekHandler = function onSeeked() {
+      const t = Math.min(index * interval, duration - 0.01);
+      // Small delay to ensure frame is decoded
+      setTimeout(() => {
+        offCtx.clearRect(0, 0, thumbW, thumbH);
+        offCtx.drawImage(video, 0, 0, thumbW, thumbH);
+
+        const img = document.createElement('img');
+        img.src = offC.toDataURL('image/jpeg', 0.6);
+        img.alt = formatTime(t);
+
+        const label = document.createElement('span');
+        label.className = 'thumb-time';
+        label.textContent = formatTime(t);
+
+        const div = document.createElement('div');
+        div.className = 'thumb';
+        div.dataset.time = t;
+        div.appendChild(img);
+        div.appendChild(label);
+
+        div.addEventListener('click', () => {
+          video.currentTime = t;
+        });
+
+        filmstrip.appendChild(div);
+        index++;
+        captureNext();
+      }, 60);
+    };
+
+    video.addEventListener('seeked', seekHandler);
+    captureNext();
+  }
+
+  // Update active thumb on timeupdate
+  function updateFilmstripActive() {
+    const thumbs = filmstrip.querySelectorAll('.thumb');
+    if (!thumbs.length) return;
+    const ct = video.currentTime;
+    let bestMatch = thumbs[0];
+    let bestDiff = Math.abs(parseFloat(thumbs[0].dataset.time) - ct);
+    for (let i = 1; i < thumbs.length; i++) {
+      const diff = Math.abs(parseFloat(thumbs[i].dataset.time) - ct);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestMatch = thumbs[i];
+      }
+    }
+    thumbs.forEach(t => t.classList.remove('active'));
+    bestMatch.classList.add('active');
+  }
+
+  // === Frame capture ===
+  captureBtn.addEventListener('click', captureFrame);
+
+  function captureFrame() {
+    if (!videoLoaded || !video.src || !video.videoWidth) {
+      showToast('请先加载视频');
+      return;
+    }
+    // Draw video frame to canvas
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) { showToast('视频尚未解码'); return; }
+
+    // Auto-adjust output resolution to match video aspect ratio
+    const vRatio = vw / vh;
+    // Preserve the larger dimension from current output, adjust the other
+    let outW, outH;
+    if (vRatio >= 1) { // landscape: keep currentResW, adjust height
+      outW = currentResW;
+      outH = Math.round(outW / vRatio);
+      // Ensure even dimensions
+      if (outH % 2 !== 0) outH++;
+    } else { // portrait: keep currentResH, adjust width
+      outH = currentResH;
+      outW = Math.round(outH * vRatio);
+      if (outW % 2 !== 0) outW++;
+    }
+    currentResW = outW;
+    currentResH = outH;
+    resW.value = outW;
+    resH.value = outH;
+
+    // Set canvas to matched resolution
+    canvas.width = outW;
+    canvas.height = outH;
+    fitContainerByAspect(canvasWrap, outW, outH);
+
+    // Draw video frame (now fills canvas exactly, no black bars)
+    ctx.drawImage(video, 0, 0, outW, outH);
+
+    hasFrame = true;
+    canvasEmpty.style.display = 'none';
+    exportBtn.disabled = false;
+
+    // Store the raw image data (without text) for re-rendering
+    capturedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    // Draw text overlay
+    drawTextOverlay();
+
+    showToast(`✅ 已截取帧 @ ${formatTime(video.currentTime)}`);
+  }
+
+  // === Text overlay ===
+  let selectedText = null; // 'title' | 'sub' | null
+
+  function getTextBaseX(align) {
+    const padding = 40;
+    if (align === 'left') return padding;
+    if (align === 'right') return canvas.width - padding;
+    return canvas.width / 2;
+  }
+
+  function getTextBoxBounds(type) {
+    const isTitle = type === 'title';
+    const text = isTitle ? titleText.value.trim() : subText.value.trim();
+    if (!text) return null;
+    const size = isTitle ? parseInt(titleSize.value) : parseInt(subSize.value);
+    const y = isTitle ? parseInt(titleY.value) : parseInt(subY.value);
+    const offX = isTitle ? parseInt(titleX.value) : parseInt(subX.value);
+    const align = textAlign.value;
+    const baseX = getTextBaseX(align);
+    const x = baseX + offX;
+    const fontWeight = isTitle ? 'bold' : 'normal';
+    ctx.font = `${fontWeight} ${size}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+    ctx.textAlign = align;
+    const metrics = ctx.measureText(text);
+    const tw = metrics.width;
+    const lh = size * 1.25;
+    let bx, bw;
+    if (align === 'center') { bx = x - tw/2 - 8; bw = tw + 16; }
+    else if (align === 'right') { bx = x - tw - 8; bw = tw + 16; }
+    else { bx = x - 8; bw = tw + 16; }
+    return { bx, by: y - 4, bw, bh: lh + 8, x, y, size, align };
+  }
+
+  function drawTextOverlay() {
+    if (!hasFrame && !capturedImageData) return;
+
+    // Restore base frame
+    if (capturedImageData) {
+      ctx.putImageData(capturedImageData, 0, 0);
+    }
+
+    const align = textAlign.value;
+    const baseX = getTextBaseX(align);
+
+    const title = titleText.value.trim();
+    const sub = subText.value.trim();
+    if (!title && !sub) return;
+
+    ctx.textBaseline = 'top';
+
+    // Draw title
+    if (title) {
+      const tSize = parseInt(titleSize.value);
+      const tY = parseInt(titleY.value);
+      const tOffX = parseInt(titleX.value);
+      const tX = baseX + tOffX;
+      const sw = parseFloat(strokeWidth.value);
+      ctx.font = `bold ${tSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+
+      if (sw > 0) {
+        ctx.strokeStyle = strokeColor.value;
+        ctx.lineWidth = sw;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(title, tX, tY);
+      }
+      ctx.fillStyle = textColor.value;
+      ctx.fillText(title, tX, tY);
+
+      // Selection bounding box
+      if (selectedText === 'title') {
+        const metrics = ctx.measureText(title);
+        const tw = metrics.width;
+        const lh = tSize * 1.25;
+        let bx, bw;
+        if (align === 'center') { bx = tX - tw/2 - 8; bw = tw + 16; }
+        else if (align === 'right') { bx = tX - tw - 8; bw = tw + 16; }
+        else { bx = tX - 8; bw = tw + 16; }
+        ctx.save();
+        ctx.strokeStyle = '#4a9eff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(bx, tY - 4, bw, lh + 8);
+        ctx.setLineDash([]);
+        // Corner handles
+        ctx.fillStyle = '#4a9eff';
+        const hs = 6;
+        [[bx, tY-4],[bx+bw, tY-4],[bx, tY+lh+4],[bx+bw, tY+lh+4]].forEach(([hx,hy]) => {
+          ctx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
+        });
+        ctx.restore();
+      }
+    }
+
+    // Draw subtitle
+    if (sub) {
+      const sSize = parseInt(subSize.value);
+      const sY = parseInt(subY.value);
+      const sOffX = parseInt(subX.value);
+      const sX = baseX + sOffX;
+      const sw = parseFloat(strokeWidth.value);
+      ctx.font = `${sSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+
+      if (sw > 0) {
+        ctx.strokeStyle = strokeColor.value;
+        ctx.lineWidth = sw;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(sub, sX, sY);
+      }
+      ctx.fillStyle = textColor.value;
+      ctx.fillText(sub, sX, sY);
+
+      // Selection bounding box
+      if (selectedText === 'sub') {
+        const metrics = ctx.measureText(sub);
+        const sw2 = metrics.width;
+        const lh = sSize * 1.25;
+        let bx, bw;
+        if (align === 'center') { bx = sX - sw2/2 - 8; bw = sw2 + 16; }
+        else if (align === 'right') { bx = sX - sw2 - 8; bw = sw2 + 16; }
+        else { bx = sX - 8; bw = sw2 + 16; }
+        ctx.save();
+        ctx.strokeStyle = '#4a9eff';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(bx, sY - 4, bw, lh + 8);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#4a9eff';
+        const hs = 6;
+        [[bx, sY-4],[bx+bw, sY-4],[bx, sY+lh+4],[bx+bw, sY+lh+4]].forEach(([hx,hy]) => {
+          ctx.fillRect(hx-hs/2, hy-hs/2, hs, hs);
+        });
+        ctx.restore();
+      }
+    }
+  }
+
+  // === Draggable text (bidirectional + selection box + resize handles) ===
+  let dragState = null;
+
+  function getTextAtPos(mx, my) {
+    const title = titleText.value.trim();
+    const sub = subText.value.trim();
+    const align = textAlign.value;
+    const baseX = getTextBaseX(align);
+
+    // Check title
+    if (title) {
+      const tSize = parseInt(titleSize.value);
+      const tY = parseInt(titleY.value);
+      const tOffX = parseInt(titleX.value);
+      const tX = baseX + tOffX;
+      ctx.font = `bold ${tSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+      const metrics = ctx.measureText(title);
+      const tw = metrics.width;
+      const lh = tSize * 1.25;
+
+      let left, right;
+      if (align === 'center') { left = tX - tw/2 - 12; right = tX + tw/2 + 12; }
+      else if (align === 'right') { left = tX - tw - 12; right = tX + 12; }
+      else { left = tX - 12; right = tX + tw + 12; }
+
+      if (mx >= left && mx <= right && my >= tY - 8 && my <= tY + lh + 8) return 'title';
+    }
+
+    // Check subtitle
+    if (sub) {
+      const sSize = parseInt(subSize.value);
+      const sY = parseInt(subY.value);
+      const sOffX = parseInt(subX.value);
+      const sX = baseX + sOffX;
+      ctx.font = `${sSize}px "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif`;
+      ctx.textAlign = align;
+      const metrics = ctx.measureText(sub);
+      const sw2 = metrics.width;
+      const lh = sSize * 1.25;
+
+      let left, right;
+      if (align === 'center') { left = sX - sw2/2 - 12; right = sX + sw2/2 + 12; }
+      else if (align === 'right') { left = sX - sw2 - 12; right = sX + 12; }
+      else { left = sX - 12; right = sX + sw2 + 12; }
+
+      if (mx >= left && mx <= right && my >= sY - 8 && my <= sY + lh + 8) return 'sub';
+    }
+
+    return null;
+  }
+
+  function getHandleAtPos(mx, my) {
+    // Only check if a text is selected
+    if (!selectedText) return null;
+    const bounds = getTextBoxBounds(selectedText);
+    if (!bounds) return null;
+    const hs = 8; // handle half-size for hit detection
+    const corners = [
+      { idx: 0, cx: bounds.bx, cy: bounds.by },
+      { idx: 1, cx: bounds.bx + bounds.bw, cy: bounds.by },
+      { idx: 2, cx: bounds.bx, cy: bounds.by + bounds.bh },
+      { idx: 3, cx: bounds.bx + bounds.bw, cy: bounds.by + bounds.bh }
+    ];
+    for (const c of corners) {
+      if (Math.abs(mx - c.cx) <= hs && Math.abs(my - c.cy) <= hs) {
+        return { type: selectedText, corner: c.idx };
+      }
+    }
+    return null;
+  }
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (!hasFrame && !capturedImageData) return;
+    const title = titleText.value.trim();
+    const sub = subText.value.trim();
+    if (!title && !sub) { selectedText = null; drawTextOverlay(); return; }
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    if (mx < 0 || my < 0 || mx > canvas.width || my > canvas.height) return;
+
+    // Check handle hit first (resize mode)
+    const handleHit = getHandleAtPos(mx, my);
+    if (handleHit) {
+      selectedText = handleHit.type;
+      const curSize = parseInt(handleHit.type === 'title' ? titleSize.value : subSize.value);
+      dragState = {
+        mode: 'resize',
+        type: handleHit.type,
+        startY: e.clientY,
+        baseSize: curSize
+      };
+      e.preventDefault();
+      drawTextOverlay();
+      return;
+    }
+
+    // Check text body hit (move mode)
+    const hit = getTextAtPos(mx, my);
+    if (hit) {
+      selectedText = hit;
+      dragState = {
+        mode: 'move',
+        type: hit,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: hit === 'title' ? parseInt(titleX.value) : parseInt(subX.value),
+        baseY: hit === 'title' ? parseInt(titleY.value) : parseInt(subY.value),
+        size: parseInt(hit === 'title' ? titleSize.value : subSize.value)
+      };
+      e.preventDefault();
+    } else {
+      selectedText = null;
+    }
+    drawTextOverlay();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!dragState) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    if (dragState.mode === 'resize') {
+      const dy = (e.clientY - dragState.startY) * scaleY;
+      const newSize = Math.round(Math.max(12, Math.min(200, dragState.baseSize + dy)));
+      if (dragState.type === 'title') {
+        titleSize.value = newSize; titleSizeLabel.textContent = newSize + 'px';
+      } else {
+        subSize.value = newSize; subSizeLabel.textContent = newSize + 'px';
+      }
+      drawTextOverlay();
+      return;
+    }
+
+    // Move mode
+    const dx = (e.clientX - dragState.startX) * scaleX;
+    const dy = (e.clientY - dragState.startY) * scaleY;
+
+    const margin = 10;
+    const maxY = canvas.height - dragState.size - margin;
+
+    const newX = Math.round(Math.max(-canvas.width, Math.min(canvas.width, dragState.baseX + dx)));
+    const newY = Math.round(Math.max(margin, Math.min(maxY, dragState.baseY + dy)));
+
+    if (dragState.type === 'title') {
+      titleX.value = newX; titleXLabel.textContent = newX;
+      titleY.value = newY; titleYLabel.textContent = newY;
+    } else {
+      subX.value = newX; subXLabel.textContent = newX;
+      subY.value = newY; subYLabel.textContent = newY;
+    }
+    drawTextOverlay();
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (dragState) { dragState = null; canvas.style.cursor = 'default'; }
+  });
+
+  // Hover cursor (handle → nw-resize, text → grab, else default)
+  canvas.addEventListener('mousemove', function(e) {
+    if (dragState) { canvas.style.cursor = dragState.mode === 'resize' ? 'nwse-resize' : 'grabbing'; return; }
+    if (!hasFrame && !capturedImageData) { canvas.style.cursor = 'default'; return; }
+    const title = titleText.value.trim();
+    const sub = subText.value.trim();
+    if (!title && !sub) { canvas.style.cursor = 'default'; return; }
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    // Check handle first
+    if (getHandleAtPos(mx, my)) { canvas.style.cursor = 'nwse-resize'; return; }
+    const hit = getTextAtPos(mx, my);
+    canvas.style.cursor = hit ? 'grab' : 'default';
+  });
+
+  // === Double-click to edit text on canvas ===
+  canvas.addEventListener('dblclick', function(e) {
+    if (!hasFrame && !capturedImageData) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+
+    const hit = getTextAtPos(mx, my);
+    if (!hit) return;
+
+    // Remove any existing editor
+    document.querySelectorAll('.text-editor-overlay').forEach(el => el.remove());
+
+    const isTitle = hit === 'title';
+    const currentText = isTitle ? titleText.value : subText.value;
+    const fontSize = isTitle ? parseInt(titleSize.value) : parseInt(subSize.value);
+    const color = textColor.value;
+    const fontWeight = isTitle ? 'bold' : 'normal';
+    const align = textAlign.value;
+    const baseX = getTextBaseX(align);
+    const offsetX = isTitle ? parseInt(titleX.value) : parseInt(subX.value);
+    const textY = isTitle ? parseInt(titleY.value) : parseInt(subY.value);
+    const textX = baseX + offsetX;
+
+    // Map canvas coords to CSS coords within canvasWrap
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    const cssScaleX = rect.width / canvas.width;
+    const cssScaleY = rect.height / canvas.height;
+    const cssX = textX * cssScaleX + (rect.left - wrapRect.left);
+    const cssY = textY * cssScaleY + (rect.top - wrapRect.top);
+    const cssFontSize = Math.max(12, fontSize * cssScaleY);
+
+    const input = document.createElement('input');
+    input.className = 'text-editor-overlay';
+    input.type = 'text';
+    input.value = currentText;
+    input.style.cssText = `
+      position: absolute;
+      left: ${cssX}px;
+      top: ${cssY}px;
+      transform: ${align === 'center' ? 'translateX(-50%)' : align === 'right' ? 'translateX(-100%)' : 'none'};
+      font-size: ${cssFontSize}px;
+      font-weight: ${fontWeight};
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      color: ${color};
+      background: rgba(0,0,0,0.55);
+      border: 2px solid #4a9eff;
+      border-radius: 4px;
+      padding: 0 6px;
+      outline: none;
+      z-index: 100;
+      min-width: 30px;
+      text-align: ${align};
+      white-space: nowrap;
+      caret-color: ${color};
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    `;
+    canvasWrap.appendChild(input);
+    input.focus();
+    input.select();
+
+    function commitEdit() {
+      const val = input.value.trim();
+      if (isTitle) {
+        titleText.value = val || '精彩时刻';
+      } else {
+        subText.value = val;
+      }
+      input.remove();
+      drawTextOverlay();
+    }
+
+    input.addEventListener('blur', commitEdit);
+    input.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        input.blur();
+      }
+      if (ev.key === 'Escape') {
+        input.remove();
+        drawTextOverlay();
+      }
+    });
+  });
+
+  // === Re-render on param change ===
+  const renderInputs = [titleText, subText, titleSize, subSize, textColor, strokeColor, titleY, subY, titleX, subX, textAlign, strokeWidth];
+  renderInputs.forEach(el => el.addEventListener('input', () => {
+    if (hasFrame) drawTextOverlay();
+  }));
+
+  // Update labels
+  titleSize.addEventListener('input', () => { titleSizeLabel.textContent = titleSize.value + 'px'; });
+  subSize.addEventListener('input', () => { subSizeLabel.textContent = subSize.value + 'px'; });
+  titleY.addEventListener('input', () => { titleYLabel.textContent = titleY.value; });
+  subY.addEventListener('input', () => { subYLabel.textContent = subY.value; });
+  titleX.addEventListener('input', () => { titleXLabel.textContent = titleX.value; });
+  subX.addEventListener('input', () => { subXLabel.textContent = subX.value; });
+  strokeWidth.addEventListener('input', () => { strokeWidthLabel.textContent = strokeWidth.value + 'px'; });
+
+  // === Resolution presets ===
+  document.querySelectorAll('.res-presets .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.res-presets .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const w = parseInt(chip.dataset.w);
+      const h = parseInt(chip.dataset.h);
+      resW.value = w;
+      resH.value = h;
+      currentResW = w;
+      currentResH = h;
+      canvas.width = w;
+      canvas.height = h;
+      fitContainerByAspect(canvasWrap, w, h);
+      if (hasFrame) {
+        clearFrame();
+        showToast('分辨率已变更，已清空帧，请重新截取');
+      }
+    });
+  });
+
+  resW.addEventListener('change', () => {
+    currentResW = parseInt(resW.value) || 1280;
+    canvas.width = currentResW;
+    fitContainerByAspect(canvasWrap, currentResW, currentResH);
+    if (hasFrame) clearFrame();
+  });
+  resH.addEventListener('change', () => {
+    currentResH = parseInt(resH.value) || 720;
+    canvas.height = currentResH;
+    fitContainerByAspect(canvasWrap, currentResW, currentResH);
+    if (hasFrame) clearFrame();
+  });
+
+  // === Reset text ===
+  resetTextBtn.addEventListener('click', () => {
+    titleText.value = '精彩时刻';
+    subText.value = '';
+    titleSize.value = 56; titleSizeLabel.textContent = '56px';
+    subSize.value = 28; subSizeLabel.textContent = '28px';
+    textColor.value = '#ffffff';
+    strokeColor.value = '#000000';
+    titleY.value = 180; titleYLabel.textContent = '180';
+    subY.value = 280; subYLabel.textContent = '280';
+    titleX.value = 0; titleXLabel.textContent = '0';
+    subX.value = 0; subXLabel.textContent = '0';
+    textAlign.value = 'center';
+    strokeWidth.value = 3; strokeWidthLabel.textContent = '3px';
+    if (hasFrame) drawTextOverlay();
+    showToast('文字已重置');
+  });
+
+  // === Clear frame ===
+  function clearFrame() {
+    hasFrame = false;
+    capturedImageData = null;
+    canvasEmpty.style.display = 'block';
+    exportBtn.disabled = true;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    showToast('已清空帧');
+  }
+  clearFrameBtn.addEventListener('click', clearFrame);
+
+  // === Export ===
+  exportBtn.addEventListener('click', exportCover);
+
+  function exportCover() {
+    if (!hasFrame) { showToast('请先截取一帧'); return; }
+    // Ensure text is rendered
+    drawTextOverlay();
+
+    const link = document.createElement('a');
+    link.download = 'framepick_cover.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✅ 封面已导出!');
+  }
+
+  // === Toast ===
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  // === Init ===
+  // Set canvas to default resolution
+  canvas.width = 1280;
+  canvas.height = 720;
+  fitContainerByAspect(canvasWrap, 1280, 720);
+  // Draw placeholder
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#444';
+  ctx.font = '16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('截取视频帧后显示在此', canvas.width/2, canvas.height/2);
+
+  console.log('🎬 FramePick loaded. Drag a video to start!');
+})();
+</script>
+</body>
+</html>
