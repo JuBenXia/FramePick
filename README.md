@@ -1,54 +1,59 @@
 # FramePick 🎬✂️
 
-**拖拽视频 → 截取帧 → 编辑封面 → 导出**
+**Drag & drop a video → Capture any frame → Add text overlays → Export your thumbnail**
 
-一个开箱即用的纯前端视频帧截图 + 封面编辑器。拖入视频即可逐帧浏览、截取画面、添加文字标题/副标题，所有功能在浏览器中本地完成，无需上传。
+A zero-dependency, single-file HTML tool for capturing video frames and designing custom thumbnails. Everything runs in your browser — no uploads, no servers, no AI.
 
-![FramePick 效果图](framepick_preview.png)
+![FramePick Preview](framepick_preview.png)
 
 ---
 
-## ✨ 功能
+## ✨ Features
 
-- **拖放加载** — 把视频拖进窗口即播
-- **逐帧截取** — 进度条点击截取当前帧，滑块微调时间点
-- **缩略图时间线** — 加载后显示全进度缩略图，一眼定位
-- **文字编辑** — 标题 + 副标题，双击画布编辑文本内容
-- **自由拖拽** — 选中文字后拖拽移动位置（X/Y），手柄拖拽改字号
-- **样式控制** — 字号、颜色、描边、对齐、自定义偏移
-- **分辨预设** — 快速切换 1080p/720p/540p/480p/竖版/原始尺寸
-- **一键导出** — PNG 导出到本地
+- **🎯 Frame Capture** — Click any point on the timeline to grab the perfect frame; fine-tune with precision slider
+- **🎞️ Filmstrip Timeline** — Full-progress thumbnail preview loads on launch, instantly see what's at every moment
+- **✏️ On-Canvas Text Editing** — Double-click text to edit content directly on the canvas, just like Photoshop/Canva
+- **↕️ Drag & Resize** — Drag text to reposition (X/Y both axes); drag corner handles to scale font size
+- **🎨 Full Style Control** — Font size, color, stroke (width + color), alignment (left/center/right), independent X/Y offset
+- **📐 Aspect Ratio Presets** — Optimized for short-form video platforms:
+  - **9:16** — TikTok, YouTube Shorts, Instagram Reels, Kuaishou
+  - **16:9** — YouTube, Bilibili, standard landscape
+  - **1:1** — Instagram feed, social media
+  - **4:3, 21:9** — Classic & cinematic
+  - **Original** — Auto-detect video aspect ratio
+- **📥 One-Click Export** — Save as PNG directly to your device
 
-## 📦 使用
+## 🚀 Usage
 
-1. 用任意静态服务器打开 `framepick.html`
+1. Serve `framepick.html` with any static server:
+
    ```bash
-   # Python
    python -m http.server 8080
-   # 或用 VS Code Live Server
+   # or VS Code Live Server, npx serve, etc.
    ```
-2. 拖入你的视频文件
-3. 点击进度条截帧 → 在右侧编辑封面文字
-4. 拖拽/缩放/双击文字调整内容
-5. 选择分辨率 → 导出 PNG
 
-## 🖱️ 操作指南
+2. **Drag & drop** any video file onto the page
+3. Click the timeline to seek, then click **Capture Frame** to lock the frame into the editor
+4. Add title/subtitle text, double-click to edit, drag to position, drag handles to resize
+5. Select output resolution → **Export PNG**
 
-| 操作 | 说明 |
-|------|------|
-| 拖入视频 | 加载视频文件 |
-| 点击进度条 | 跳转时间点 |
-| 截取帧 | 当前时间点画面锁定到编辑区 |
-| 选中文字 | 显示蓝色边框 + 四角手柄 |
-| 拖拽文字 | 移动 X/Y 位置 |
-| 拖拽角手柄 | 上下拖拽调整字号 |
-| 双击文字 | 在画布上直接编辑文本 |
-| 导出 PNG | 右键保存画布内容 |
+## 🖱️ Quick Reference
 
-## 🛠️ 技术栈
+| Action | Result |
+|--------|--------|
+| Drag video onto page | Load video |
+| Click filmstrip / timeline | Seek to time position |
+| Capture Frame | Lock current frame to editor |
+| Click text on canvas | Select (blue outline + corner handles) |
+| Drag selected text | Move X/Y position |
+| Drag corner handle | Resize font size |
+| Double-click text | Inline edit text content |
+| Right-click → Save As | Export PNG |
 
-纯 HTML + Canvas + JavaScript，零依赖，单文件。
+## 🛠️ Tech Stack
+
+Pure **HTML5 Canvas + Vanilla JavaScript** — zero dependencies, single HTML file, works entirely offline.
 
 ---
 
-Made with ❤️ by [GA-FramePick]
+Made with ❤️ by [JuBenXia](https://github.com/JuBenXia/FramePick)
